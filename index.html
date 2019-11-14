@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="wad.min.js"></script>
+</head>
+
+<body>
+    <h2 id="note"></h2>
+    <button id="stop">stop</button>
+    <button id="start">start</button>
+
+</body>
+
+<script>
+    var referenceNotesPitch = [329.6, 246.9, 196, 146.8, 110, 82.4];
+    var referenceNotesNames = ["E4", "B", "G", "D", "A", "E"];
+
+    var noteDisplay = document.querySelector("#note");
+    var voice = new Wad({ source: 'mic' }); // At this point, your browser will ask for permission to access your microphone.
+    var tuner = new Wad.Poly();
+     // You must give your browser permission to access your microphone before calling play().
+
+    // tuner.updatePitch() // The tuner is now calculating the pitch and note name of its input 60 times per second. These values are stored in <code>tuner.pitch</code> and <code>tuner.noteName</code>.
+
+    var pitchCorrelation = function(detectedPitch){
+        var result = referenceNotesPitch.map(function(pitch, index){
+            return {
+                diff: (pitch - detectedPitch.pitch),
+                index: index
+            }
+        });
+
+        var note = result.sort(function(a, b){
+            return Math.abs(a.diff) - Math.abs(b.diff);
+        })[0];
+
+        if(Number.isNaN(note.diff) || Math.abs(note.diff) > 40)
+            return;
+
+        console.log(referenceNotesNames[note.index], note.diff);
+        if(Math.abs(note.diff) <= 0.4){
+            console.log("perfect");
+            return;
+        }
+
+        console.log(note.diff > 0 ? "up": "down")
+    }
+
+    var logPitch = function () {
+        if(!tuner)
+            return;
+
+        // console.log(tuner.pitch, tuner.noteName);
+        pitchCorrelation(tuner);
+        noteDisplay.innerHTML = tuner.noteName;
+        requestAnimationFrame(logPitch)
+    };
+
+    let startButton = document.querySelector("#start");
+    startButton.addEventListener('click', function(){
+        tuner = new Wad.Poly();
+        tuner.setVolume(0); // If you're not using headphones, you can eliminate microphone feedback by muting the output from the tuner.
+        tuner.add(voice);
+
+        voice.play();
+
+        tuner.updatePitch();
+        logPitch();
+    });
+
+    let stopButton = document.querySelector("#stop");
+    stopButton.addEventListener('click', function(){
+        if(!tuner)
+            return;
+
+        tuner.stopUpdatingPitch(); 
+        tuner = null;
+    });    
+
+</script>
+
+</html>
